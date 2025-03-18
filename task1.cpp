@@ -9,14 +9,10 @@
 
 static std::ofstream outfile("log.txt");
 
-//std::counting_semaphore<1> cs(1);
-//std::binary_semaphore bs(1);
-//std::mutex mu;
-
 class Node{
-    public:
-        int value;
-        Node* next;
+public:
+    int value;
+    Node* next;
 };
 /*No need to touch the above code */
 
@@ -25,13 +21,12 @@ class ConcurrentQueue{
     Node* head;
     Node* tail;
     // You might need additional variables here
+    //std::binary_semaphore& enqueueSemaphore = *new std::binary_semaphore(1);
+    //std::binary_semaphore& dequeueSemaphore = *new std::binary_semaphore(1);
+    //std::mutex enqueueMutex, dequeueMutex;
+    //int enqueueCnt = 0, dequeueCnt = 0;
 
-private:
-    void printQueue(){
-        for (Node* p = head; p != nullptr; p = p->next)
-            std::cout << p->value << '\n';
-        std::cout << std::endl;
-    }
+    std::mutex enqueueLock, dequeueLock;
 
 public:
     ConcurrentQueue(){
@@ -48,6 +43,9 @@ public:
         newNode->next = nullptr;
         newNode->value = value;
 
+        while (!enqueueLock.try_lock())
+            std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
+        
         //if queue is not empty
         if (tail){
             tail->next = newNode;
@@ -59,102 +57,120 @@ public:
             head = tail;
         }
 
-        printQueue();
+        enqueueLock.unlock();
 
-        // std::string s = "Enqueued " + std::to_string(value) + ". \n";
-        // outfile << s;
+        std::string s = "Enqueued " + std::to_string(value) + ". \n";
+        outfile << s;
     }
 
     // Dequeues value of head of the list, and outputs it
     // Should block if the list is empty
     int dequeue(){
-        // fill in and add the two lines below, where returnValue is the output of the dequeue function:
-        //if queue is not empty
-        if (head){
-            //grab node and value
-            Node* tmp = head;
-            int val = tmp->value;
-            
-            //set head to next, and tail to head if queue becomes empty
-            head = head->next;
-            if (!head) tail = head;
+        //fill in and add the two lines below, where returnValue is the output of the dequeue function:
 
-            printQueue();
-            
-            //delete and return
-            delete tmp;
-            return val;
-        }
+        //only ever tries to get lock if head is not null
+        while (!head || !dequeueLock.try_lock())
+            std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
 
-        //todo: remove this in concurrent version
-        return (int)NULL;
+        //grab node and update head
+        Node* tmp = head;
+        head = head->next;
+        if (!head) tail = head;
 
-        // std::string s = "Dequeued " + std::to_string(returnValue) + ". \n";
-        // outfile << s;
+        //unlock then delete and return
+        dequeueLock.unlock();
+
+        int returnValue = tmp->value;
+        delete tmp;
+        
+        std::string s = "Dequeued " + std::to_string(returnValue) + ". \n";
+        outfile << s;
+
+        return returnValue;
     }
 
     // Dequeues value of head of the list, and outputs it
     // Non-blocking, if the list is empty it returns NULL
     int try_dequeue(){
         // fill in and add the two lines below if successful dequeue, where returnValue is the output of the dequeue function:
-        //if queue is not empty
-        if (head){
-            //grab node and value
+        // Else add the two lines below if unsuccessful dequeue:
+
+        //only ever tries to get lock if head is not null
+        while (head){
+            if (!dequeueLock.try_lock()){
+                std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
+                continue;
+            }
+
+            //grab node and update head
             Node* tmp = head;
-            int val = tmp->value;
-            
-            //set head to next, and tail to head if queue becomes empty
             head = head->next;
             if (!head) tail = head;
-            
-            //delete and return
+
+            //unlock then delete and return
+            dequeueLock.unlock();
+
+            int returnValue = tmp->value;
             delete tmp;
-            return val;
+
+            std::string s = "Successfully dequeued " + std::to_string(returnValue) + ". \n";
+            outfile << s;
+
+            return returnValue;
         }
 
-        return (int)NULL;
+        std::string s = "Failed dequeued. \n";
+        outfile << s;
 
-        // std::string s = "Successfully dequeued " + std::to_string(returnValue) + ". \n";
-        // outfile << s;
-        // Else add the two lines below if unsuccessful dequeue:
-        // std::string s = "Failed dequeued. \n";
-        // outfile << s;
+        return 0;
     }
 
     // Looks (but does not remove) at value of head of the list, and outputs it
     // Should block if the list is empty
     int peek(){
         // fill in and add the two lines below, where returnValue is the head value (or value that stayed longest in the list):
-        if (head){
-            return head->value;
-        }
+        
+        //only ever tries to get lock if head is not null
+        while (!head || !dequeueLock.try_lock())
+            std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
 
-        //todo: remove this in concurrent version
-        return (int)NULL;
+        int returnValue = head->value;
+        dequeueLock.unlock();
 
-        // std::string s = "Peeked " + std::to_string(returnValue) + ". \n";
-        // outfile << s;
+        std::string s = "Peeked " + std::to_string(returnValue) + ". \n";
+        outfile << s;
+
+        return returnValue;
     }
 
     // Looks (but does not remove) at value of head of the list, and outputs it
     // Non-blocking, if the list is empty it returns NULL
     int try_peek(){
         // fill in and add the two lines below if successful peek, where returnValue is the head value (or value that stayed longest in the list):
-        if (head){
-            return head->value;
-        }
-        
-        return (int)NULL;
-
-        // std::string s = "Successfully peeked " + std::to_string(returnValue) + ". \n";
-        // outfile << s;
         // Else add the two lines below if unsuccessful peek:
-        // std::string s = "Failed peek. \n";
-        // outfile << s;
+
+        //only ever tries to get lock if head is not null
+        while (head){
+            if (!dequeueLock.try_lock()){
+                std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
+                continue;
+            }
+
+            int returnValue = head->value;
+            dequeueLock.unlock();
+
+            std::string s = "Successfully peeked " + std::to_string(returnValue) + ". \n";
+            outfile << s;
+
+            return returnValue;
+        }
+
+        std::string s = "Failed peek. \n";
+        outfile << s;
+
+        return 0;
     }
 };
-
-
 
 /*From this part onwards, code to test the concurrent queue */
 void randomEnqueuer(ConcurrentQueue &l){
