@@ -43,8 +43,11 @@ public:
         newNode->next = nullptr;
         newNode->value = value;
 
+        //enqueue lock
         while (!enqueueLock.try_lock())
             std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
+        //if queue is of size 1, then both enqueue and dequeue can't happen in parallel
+        //while ()
         
         //if queue is not empty
         if (tail){
