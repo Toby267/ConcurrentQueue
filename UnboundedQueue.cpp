@@ -132,9 +132,7 @@ public:
     // Should block if the list is empty
     int peek(){
         // fill in and add the two lines below, where returnValue is the head value (or value that stayed longest in the list):
-        //Does peak and try peak need locks?
-        //Does logging need to be within locks?
-        //Do the extensions need to be faster than the one that pooly leverages concurrency?
+        
         //only ever tries to get lock if head is not null
         count->acquire();
         dequeueLock->lock();
@@ -157,7 +155,7 @@ public:
     int try_peek(){
         // fill in and add the two lines below if successful peek, where returnValue is the head value (or value that stayed longest in the list):
         // Else add the two lines below if unsuccessful peek:
-        //Do I try both, or just one and block on the other?
+
         //attemps to gain locks
         if (!count->try_acquire()){
             std::string s = "Failed peek. \n";
