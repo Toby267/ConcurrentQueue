@@ -23,6 +23,7 @@ class ConcurrentQueue{
 
     std::mutex *enqueueLock, *dequeueLock;
     std::counting_semaphore<>* count;
+    int countInt;
 
 public:
     ConcurrentQueue(){
@@ -33,6 +34,7 @@ public:
         enqueueLock = new std::mutex();
         dequeueLock = new std::mutex();
         count = new std::counting_semaphore<>(0);
+        countInt = 0;
     }
 
     // Enqueues input value at the tail of the list
@@ -43,8 +45,10 @@ public:
         newNode->next = nullptr;
         newNode->value = value;
 
+        //so that enqueue and dequeue can't happen in parallel when size <= 1
         enqueueLock->lock();
-        
+        if (countInt <= 1) dequeueLock->lock();
+
         //if queue is not empty
         if (tail){
             tail->next = newNode;
@@ -59,6 +63,7 @@ public:
         std::string s = "Enqueued " + std::to_string(value) + ". \n";
         outfile << s;
         
+        if (countInt++ <= 1) dequeueLock->unlock();
         enqueueLock->unlock();
         count->release();
     }
@@ -80,6 +85,7 @@ public:
         std::string s = "Dequeued " + std::to_string(tmp->value) + ". \n";
         outfile << s;        
 
+        countInt--;
         //unlock then delete and return
         dequeueLock->unlock();
 
@@ -118,6 +124,8 @@ public:
 
         std::string s = "Successfully dequeued " + std::to_string(tmp->value) + ". \n";
         outfile << s;
+
+        countInt--;
 
         //unlock then delete and return
         dequeueLock->unlock();
@@ -235,10 +243,11 @@ int main(int argc, char *argv[]){
         threads.push_back(std::thread(randomDequeuer, std::ref(list)));
     }
     threads.push_back(std::thread(randomPeek, std::ref(list)));
-
+    
     for (int i = 0; i < threads.size(); ++i){
         threads[i].join();
     }
+
     threads.push_back(std::thread(randomTryDequeue, std::ref(list)));
     threads.back().join();
     threads.push_back(std::thread(randomTryPeek, std::ref(list)));
