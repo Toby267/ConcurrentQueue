@@ -32,7 +32,7 @@ public:
         tail = nullptr;
         head = nullptr;
         lock = new std::mutex();
-        logLock = new std::mutex();
+        //logLock = new std::mutex();
         count = new std::counting_semaphore<>(0);
     }
 
@@ -57,13 +57,11 @@ public:
             head = tail;
         }
 
+        std::string s = "Enqueued " + std::to_string(value) + ". \n";
+        outfile << s;
+
         count->release();
         lock->unlock();
-
-        std::string s = "Enqueued " + std::to_string(value) + ". \n";
-        logLock->lock();
-        outfile << s;
-        logLock->unlock();
     }
 
     // Dequeues value of head of the list, and outputs it
@@ -80,16 +78,14 @@ public:
         head = head->next;
         if (!head) tail = head;
 
+        std::string s = "Dequeued " + std::to_string(tmp->value) + ". \n";
+        outfile << s;        
+
         //unlock then delete and return
         lock->unlock();
 
         int returnValue = tmp->value;
         delete tmp;
-        
-        std::string s = "Dequeued " + std::to_string(returnValue) + ". \n";
-        logLock->lock();
-        outfile << s;
-        logLock->unlock();
 
         return returnValue;
     }
@@ -102,22 +98,16 @@ public:
 
         //attemps to gain locks
         if (!count->try_acquire()){
-
             std::string s = "Failed dequeued. \n";
-            logLock->lock();
             outfile << s;
-            logLock->unlock();
 
             return 0;
         }
         if (!lock->try_lock()){
             count->release();
 
-
             std::string s = "Failed dequeued. \n";
-            logLock->lock();
             outfile << s;
-            logLock->unlock();
 
             return 0;
         }
@@ -127,16 +117,14 @@ public:
         head = head->next;
         if (!head) tail = head;
 
+        std::string s = "Successfully dequeued " + std::to_string(tmp->value) + ". \n";
+        outfile << s;
+
         //unlock then delete and return
         lock->unlock();
 
         int returnValue = tmp->value;
         delete tmp;
-
-        std::string s = "Successfully dequeued " + std::to_string(returnValue) + ". \n";
-        logLock->lock();
-        outfile << s;
-        logLock->unlock();
 
         return returnValue;
     }
@@ -147,20 +135,19 @@ public:
         // fill in and add the two lines below, where returnValue is the head value (or value that stayed longest in the list):
         
         //only ever tries to get lock if head is not null
+        std::cout << "peaking\n";
         count->acquire();
         lock->lock();
 
         //grab value
         int returnValue = head->value;
 
+        std::string s = "Peeked " + std::to_string(returnValue) + ". \n";
+        outfile << s;
+
         //unlock then return
         count->release();
         lock->unlock();
-        
-        std::string s = "Dequeued " + std::to_string(returnValue) + ". \n";
-        logLock->lock();
-        outfile << s;
-        logLock->unlock();
 
         return returnValue;
     }
@@ -173,22 +160,16 @@ public:
 
         //attemps to gain locks
         if (!count->try_acquire()){
-
             std::string s = "Failed peek. \n";
-            logLock->lock();
             outfile << s;
-            logLock->unlock();
 
             return 0;
         }
         if (!lock->try_lock()){
             count->release();
 
-
             std::string s = "Failed peek. \n";
-            logLock->lock();
             outfile << s;
-            logLock->unlock();
 
             return 0;
         }
@@ -196,14 +177,12 @@ public:
         //grab value
         int returnValue = head->value;
 
+        std::string s = "Successfully peeked " + std::to_string(returnValue) + ". \n";
+        outfile << s;
+
         //unlock then return
         count->release();
         lock->unlock();
-        
-        std::string s = "Dequeued " + std::to_string(returnValue) + ". \n";
-        logLock->lock();
-        outfile << s;
-        logLock->unlock();
 
         return returnValue;
     }
@@ -257,15 +236,15 @@ int main(int argc, char *argv[]){
     for (int i = 0;  i < consumerNumber; i++){
         threads.push_back(std::thread(randomDequeuer, std::ref(list)));
     }
-    // threads.push_back(std::thread(randomPeek, std::ref(list)));
+    threads.push_back(std::thread(randomPeek, std::ref(list)));
 
     for (int i = 0; i < threads.size(); ++i){
         threads[i].join();
     }
-    // threads.push_back(std::thread(randomTryDequeue, std::ref(list)));
-    // threads.back().join();
-    // threads.push_back(std::thread(randomTryPeek, std::ref(list)));
-    // threads.back().join();
+    threads.push_back(std::thread(randomTryDequeue, std::ref(list)));
+    threads.back().join();
+    threads.push_back(std::thread(randomTryPeek, std::ref(list)));
+    threads.back().join();
 
     outfile.close();
     return 0;
