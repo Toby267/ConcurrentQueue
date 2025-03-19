@@ -134,6 +134,7 @@ public:
         // fill in and add the two lines below, where returnValue is the head value (or value that stayed longest in the list):
         //Does peak and try peak need locks?
         //Does logging need to be within locks?
+        //Do the extensions need to be faster than the one that pooly leverages concurrency?
         //only ever tries to get lock if head is not null
         count->acquire();
         dequeueLock->lock();
