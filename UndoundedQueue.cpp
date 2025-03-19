@@ -27,6 +27,8 @@ class ConcurrentQueue{
     //int enqueueCnt = 0, dequeueCnt = 0;
 
     std::mutex enqueueLock, dequeueLock;
+    std::mutex cntEqualsOne;
+    //it can be released by a thread that didn't acquire it, thats where the bug is. turn it into a mutex
 
 public:
     ConcurrentQueue(){
@@ -37,6 +39,8 @@ public:
 
     // Enqueues input value at the tail of the list
     void enqueue(int value){
+        
+        
         // fill in and add the two lines below:
         //sets up new node
         Node* newNode = new Node();
@@ -44,11 +48,11 @@ public:
         newNode->value = value;
 
         //enqueue lock
-        while (!enqueueLock.try_lock())
-            std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
+        enqueueLock.lock();
         //if queue is of size 1, then both enqueue and dequeue can't happen in parallel
-        //while ()
-        
+        if (head == tail || head == nullptr)
+            cntEqualsOne.lock();
+        std::cout << "enqueue" << '\n';
         //if queue is not empty
         if (tail){
             tail->next = newNode;
@@ -59,35 +63,45 @@ public:
             tail = newNode;
             head = tail;
         }
-
+        
+        cntEqualsOne.unlock();
         enqueueLock.unlock();
-
+        
+        
         std::string s = "Enqueued " + std::to_string(value) + ". \n";
         outfile << s;
+        std::cout << s;
     }
 
     // Dequeues value of head of the list, and outputs it
     // Should block if the list is empty
     int dequeue(){
+        std::cout << "dequeue start" << '\n';
+        
         //fill in and add the two lines below, where returnValue is the output of the dequeue function:
 
         //only ever tries to get lock if head is not null
         while (!head || !dequeueLock.try_lock())
             std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
-
+        //if queue is of size 1, then both enqueue and dequeue can't happen in parallel
+        while ((head == tail || head == nullptr) && !cntEqualsOne.try_lock())
+            std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
+        std::cout << "dequeue" << '\n';
         //grab node and update head
         Node* tmp = head;
         head = head->next;
         if (!head) tail = head;
 
         //unlock then delete and return
+        cntEqualsOne.unlock();
         dequeueLock.unlock();
-
+        
         int returnValue = tmp->value;
         delete tmp;
         
         std::string s = "Dequeued " + std::to_string(returnValue) + ". \n";
         outfile << s;
+        std::cout << s;
 
         return returnValue;
     }
@@ -95,6 +109,8 @@ public:
     // Dequeues value of head of the list, and outputs it
     // Non-blocking, if the list is empty it returns NULL
     int try_dequeue(){
+        std::cout << "try dequeue start" << '\n';
+        
         // fill in and add the two lines below if successful dequeue, where returnValue is the output of the dequeue function:
         // Else add the two lines below if unsuccessful dequeue:
 
@@ -102,28 +118,38 @@ public:
         while (head){
             if (!dequeueLock.try_lock()){
                 std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
+                std::cout << "here" << "/n";
                 continue;
             }
-
+            //if queue is of size 1, then both enqueue and dequeue can't happen in parallel
+            if ((head == tail || head == nullptr) && !cntEqualsOne.try_lock()){
+                std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
+                std::cout << "here2" << "/n";
+                continue;
+            }
+            std::cout << "try dequeue" << '\n';
             //grab node and update head
             Node* tmp = head;
             head = head->next;
             if (!head) tail = head;
 
             //unlock then delete and return
+            cntEqualsOne.unlock();
             dequeueLock.unlock();
-
+            
             int returnValue = tmp->value;
             delete tmp;
 
             std::string s = "Successfully dequeued " + std::to_string(returnValue) + ". \n";
             outfile << s;
+            std::cout << s;
 
             return returnValue;
         }
 
         std::string s = "Failed dequeued. \n";
         outfile << s;
+        std::cout << s;
 
         return 0;
     }
@@ -131,17 +157,19 @@ public:
     // Looks (but does not remove) at value of head of the list, and outputs it
     // Should block if the list is empty
     int peek(){
+        std::cout << "peek start" << '\n';
         // fill in and add the two lines below, where returnValue is the head value (or value that stayed longest in the list):
         
         //only ever tries to get lock if head is not null
         while (!head || !dequeueLock.try_lock())
             std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
-
+        std::cout << "peek" << '\n';
         int returnValue = head->value;
         dequeueLock.unlock();
 
         std::string s = "Peeked " + std::to_string(returnValue) + ". \n";
         outfile << s;
+        std::cout << s;
 
         return returnValue;
     }
@@ -149,6 +177,7 @@ public:
     // Looks (but does not remove) at value of head of the list, and outputs it
     // Non-blocking, if the list is empty it returns NULL
     int try_peek(){
+        std::cout << "try peek start" << '\n';
         // fill in and add the two lines below if successful peek, where returnValue is the head value (or value that stayed longest in the list):
         // Else add the two lines below if unsuccessful peek:
 
@@ -158,18 +187,21 @@ public:
                 std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
                 continue;
             }
-
+            std::cout << "try peek" << '\n';
             int returnValue = head->value;
             dequeueLock.unlock();
 
             std::string s = "Successfully peeked " + std::to_string(returnValue) + ". \n";
             outfile << s;
+            std::cout << s;
 
             return returnValue;
         }
 
         std::string s = "Failed peek. \n";
         outfile << s;
+        std::cout << s;
+        
 
         return 0;
     }
