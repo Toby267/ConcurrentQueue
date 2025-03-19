@@ -57,9 +57,9 @@ public:
 
         std::string s = "Enqueued " + std::to_string(value) + ". \n";
         outfile << s;
-
-        count->release();
+        
         lock->unlock();
+        count->release();
     }
 
     // Dequeues value of head of the list, and outputs it
@@ -133,7 +133,6 @@ public:
         // fill in and add the two lines below, where returnValue is the head value (or value that stayed longest in the list):
         
         //only ever tries to get lock if head is not null
-        std::cout << "peaking\n";
         count->acquire();
         lock->lock();
 
@@ -144,8 +143,8 @@ public:
         outfile << s;
 
         //unlock then return
-        count->release();
         lock->unlock();
+        count->release();
 
         return returnValue;
     }
@@ -179,8 +178,8 @@ public:
         outfile << s;
 
         //unlock then return
-        count->release();
         lock->unlock();
+        count->release();
 
         return returnValue;
     }

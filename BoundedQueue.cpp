@@ -24,14 +24,19 @@ class ConcurrentQueue{
     std::mutex* lock;
     std::counting_semaphore<>* count;
 
+    int size = 0;
+    const int MAX_SIZE;
+    std::counting_semaphore<>* freeSlots;
+
 public:
-    ConcurrentQueue(){
+    ConcurrentQueue(const int maxSize) : MAX_SIZE(maxSize){
         // fill in
         tail = nullptr;
         head = nullptr;
 
         lock = new std::mutex();
         count = new std::counting_semaphore<>(0);
+        freeSlots = new std::counting_semaphore<>(maxSize);
     }
 
     // Enqueues input value at the tail of the list
@@ -42,6 +47,7 @@ public:
         newNode->next = nullptr;
         newNode->value = value;
 
+        freeSlots->acquire();
         lock->lock();
         
         //if queue is not empty
@@ -58,8 +64,8 @@ public:
         std::string s = "Enqueued " + std::to_string(value) + ". \n";
         outfile << s;
 
-        count->release();
         lock->unlock();
+        count->release();
     }
 
     // Dequeues value of head of the list, and outputs it
@@ -81,7 +87,8 @@ public:
 
         //unlock then delete and return
         lock->unlock();
-
+        freeSlots->release();
+        
         int returnValue = tmp->value;
         delete tmp;
 
@@ -120,6 +127,7 @@ public:
 
         //unlock then delete and return
         lock->unlock();
+        freeSlots->release();
 
         int returnValue = tmp->value;
         delete tmp;
@@ -133,7 +141,6 @@ public:
         // fill in and add the two lines below, where returnValue is the head value (or value that stayed longest in the list):
         
         //only ever tries to get lock if head is not null
-        std::cout << "peaking\n";
         count->acquire();
         lock->lock();
 
@@ -144,9 +151,9 @@ public:
         outfile << s;
 
         //unlock then return
-        count->release();
         lock->unlock();
-
+        count->release();
+        
         return returnValue;
     }
 
@@ -179,8 +186,8 @@ public:
         outfile << s;
 
         //unlock then return
-        count->release();
         lock->unlock();
+        count->release();
 
         return returnValue;
     }
@@ -226,7 +233,7 @@ int main(int argc, char *argv[]){
         consumerNumber = std::strtol(argv[2], nullptr, 0);        
     }
     std::vector<std::thread> threads;
-    ConcurrentQueue list;
+    ConcurrentQueue list(20);
 
     for (int i = 0;  i < producerNumber; i++){
         threads.push_back(std::thread(randomEnqueuer, std::ref(list)));
