@@ -23,13 +23,10 @@ class ConcurrentQueue{
 
     std::mutex* lock;
     std::counting_semaphore<>* count;
-
-    int size = 0;
-    const int MAX_SIZE;
     std::counting_semaphore<>* freeSlots;
 
 public:
-    ConcurrentQueue(const int maxSize) : MAX_SIZE(maxSize){
+    ConcurrentQueue(const int maxSize){
         // fill in
         tail = nullptr;
         head = nullptr;
