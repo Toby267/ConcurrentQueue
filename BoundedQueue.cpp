@@ -22,8 +22,6 @@ class ConcurrentQueue{
     Node* tail;
 
     std::mutex* lock;
-    std::mutex* logLock;
-
     std::counting_semaphore<>* count;
 
 public:
@@ -31,8 +29,8 @@ public:
         // fill in
         tail = nullptr;
         head = nullptr;
+
         lock = new std::mutex();
-        //logLock = new std::mutex();
         count = new std::counting_semaphore<>(0);
     }
 
