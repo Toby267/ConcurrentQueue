@@ -21,7 +21,7 @@ class ConcurrentQueue{
     Node* head;
     Node* tail;
 
-    std::mutex* lock;
+    std::mutex *enqueueLock, *dequeueLock;
     std::counting_semaphore<>* count;
 
 public:
@@ -30,7 +30,8 @@ public:
         tail = nullptr;
         head = nullptr;
 
-        lock = new std::mutex();
+        enqueueLock = new std::mutex();
+        dequeueLock = new std::mutex();
         count = new std::counting_semaphore<>(0);
     }
 
@@ -42,7 +43,7 @@ public:
         newNode->next = nullptr;
         newNode->value = value;
 
-        lock->lock();
+        enqueueLock->lock();
         
         //if queue is not empty
         if (tail){
@@ -58,7 +59,7 @@ public:
         std::string s = "Enqueued " + std::to_string(value) + ". \n";
         outfile << s;
         
-        lock->unlock();
+        enqueueLock->unlock();
         count->release();
     }
 
@@ -69,7 +70,7 @@ public:
 
         //only ever tries to get lock if head is not null
         count->acquire();
-        lock->lock();
+        dequeueLock->lock();
 
         //grab node and update head
         Node* tmp = head;
@@ -80,7 +81,7 @@ public:
         outfile << s;        
 
         //unlock then delete and return
-        lock->unlock();
+        dequeueLock->unlock();
 
         int returnValue = tmp->value;
         delete tmp;
@@ -101,7 +102,7 @@ public:
 
             return 0;
         }
-        if (!lock->try_lock()){
+        if (!dequeueLock->try_lock()){
             count->release();
 
             std::string s = "Failed dequeued. \n";
@@ -119,7 +120,7 @@ public:
         outfile << s;
 
         //unlock then delete and return
-        lock->unlock();
+        dequeueLock->unlock();
 
         int returnValue = tmp->value;
         delete tmp;
@@ -134,7 +135,7 @@ public:
         
         //only ever tries to get lock if head is not null
         count->acquire();
-        lock->lock();
+        dequeueLock->lock();
 
         //grab value
         int returnValue = head->value;
@@ -143,7 +144,7 @@ public:
         outfile << s;
 
         //unlock then return
-        lock->unlock();
+        dequeueLock->unlock();
         count->release();
 
         return returnValue;
@@ -162,7 +163,7 @@ public:
 
             return 0;
         }
-        if (!lock->try_lock()){
+        if (!dequeueLock->try_lock()){
             count->release();
 
             std::string s = "Failed peek. \n";
@@ -178,7 +179,7 @@ public:
         outfile << s;
 
         //unlock then return
-        lock->unlock();
+        dequeueLock->unlock();
         count->release();
 
         return returnValue;
